@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+  <title>Study Planner Pro</title>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --panel: rgba(255,255,255,.88);
+      --panel-solid: #ffffff;
+      --line: #e7ebf3;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --accent: #4f46e5;
+      --accent-2: #7c3aed;
+      --danger: #ef4444;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --shadow: 0 18px 50px rgba(15, 23, 42, 0.10);
+      --radius: 22px;
+      --cell-h: 74px;
+      --sticky: #fff8c7;
+      --app-h: 100dvh;
+      --left-w: 760px;
+      --right-w: 350px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(124,58,237,.10), transparent 24%),
+        radial-gradient(circle at top right, rgba(79,70,229,.10), transparent 26%),
+        linear-gradient(180deg, #f8faff 0%, var(--bg) 100%);
+      min-height: var(--app-h);
+      overflow: hidden;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    .app {
+      height: var(--app-h);
+      display: grid;
+      grid-template-columns: var(--left-w) var(--right-w);
+      justify-content: center;
+      align-items: start;
+      gap: 12px;
+      padding: max(10px, env(safe-area-inset-top)) 12px max(10px, env(safe-area-inset-bottom)) 12px;
+      overflow: hidden;
+    }
+
+    .panel {
+      background: var(--panel);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,.65);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius);
+    }
+
+    .sidebar {
+      width: var(--right-w);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow: auto;
+      max-height: calc(var(--app-h) - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      scroll-padding-top: 12px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .hero {
+      padding: 12px;
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      color: #fff;
+      border-radius: 18px;
+      position: sticky;
+      top: 0;
+      z-index: 8;
+      overflow: hidden;
+      box-shadow: 0 10px 24px rgba(79,70,229,.22);
+      flex: 0 0 auto;
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -30px -40px auto;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.14);
+      filter: blur(2px);
+    }
+    .hero h1 {
+      margin: 0 0 6px;
+      font-size: 1.08rem;
+      line-height: 1.15;
+      letter-spacing: -.02em;
+      color: #ffffff;
+    }
+    .hero p {
+      margin: 0;
+      font-size: .76rem;
+      color: rgba(255,255,255,.96);
+      line-height: 1.35;
+      display: block;
+      font-weight: 700;
+    }
+
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .stat {
+      background: var(--panel-solid);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 12px;
+    }
+    .stat .label { font-size: .74rem; color: var(--muted); }
+    .stat .value { font-size: 1.1rem; font-weight: 800; margin-top: 4px; }
+
+    .section {
+      padding: 14px;
+      background: var(--panel-solid);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+    }
+    .section-title {
+      margin: 0 0 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: .98rem;
+      font-weight: 800;
+    }
+    .section-sub {
+      margin: -4px 0 10px;
+      color: var(--muted);
+      font-size: .78rem;
+      line-height: 1.45;
+    }
+
+    .input, .select, .btn, .textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      border-radius: 14px;
+      padding: 11px 12px;
+      font-size: .92rem;
+    }
+    .textarea { resize: vertical; min-height: 82px; }
+    .input:focus, .select:focus, .btn:focus, .textarea:focus {
+      outline: none;
+      border-color: rgba(79,70,229,.45);
+      box-shadow: 0 0 0 4px rgba(79,70,229,.09);
+    }
+    .btn {
+      cursor: pointer;
+      border: none;
+      font-weight: 800;
+      transition: transform .15s ease, box-shadow .15s ease, opacity .15s ease;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; }
+    .btn.soft { background: #eef2ff; color: #4338ca; }
+    .btn.ghost { background: #f8fafc; color: var(--text); border: 1px solid var(--line); }
+    .btn.success { background: #ecfdf5; color: #047857; }
+    .btn.warning { background: #fff7ed; color: #c2410c; }
+    .btn.danger { background: #fef2f2; color: #b91c1c; }
+
+    .grid-2, .grid-3 { display: grid; gap: 10px; }
+    .grid-2 { grid-template-columns: 1fr 1fr; }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+
+    .chip-row, .pending-list, .memo-list { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 8px 10px;
+      font-size: .82rem;
+      font-weight: 700;
+    }
+    .chip button {
+      border: none;
+      background: transparent;
+      color: #94a3b8;
+      cursor: pointer;
+      font-weight: 800;
+      padding: 0;
+      width: auto;
+    }
+
+    .task-card {
+      border-radius: 9px;
+      padding: 3px 4px;
+      font-size: .6rem;
+      font-weight: 800;
+      line-height: 1.05;
+      border: 1px solid rgba(15,23,42,.06);
+      box-shadow: 0 3px 8px rgba(15,23,42,.06);
+      cursor: grab;
+      user-select: none;
+      min-height: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2px;
+      overflow: hidden;
+    }
+    .task-card small { color: rgba(15,23,42,.65); font-weight: 600; font-size: .48rem; line-height: 1.0; }
+
+    .task-room {
+      color: rgba(15,23,42,.65);
+      font-weight: 600;
+      font-size: .48rem;
+      line-height: 1.0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .task-memo {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      max-width: 100%;
+      padding: 1px 4px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.68);
+      border: 1px solid rgba(15,23,42,.08);
+      color: #334155;
+      font-size: .46rem;
+      font-weight: 800;
+      line-height: 1.0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .task-preview-wrap {
+      padding: 8px;
+      border: 1px dashed var(--line);
+      border-radius: 14px;
+      background: #f8fafc;
+    }
+
+    .task-preview-label {
+      font-size: .66rem;
+      color: var(--muted);
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .task-preview-card {
+      min-height: 30px;
+    }
+
+    .task-card.fixed { cursor: default; }
+    .task-card.daily { outline: 2px dashed rgba(239,68,68,.55); outline-offset: -3px; }
+
+    .pending-list {
+      min-height: 72px;
+      border: 1.5px dashed #cbd5e1;
+      border-radius: 16px;
+      padding: 10px;
+      background: #fcfdff;
+      align-content: flex-start;
+    }
+
+    .trash {
+      padding: 12px;
+      text-align: center;
+      border-radius: 14px;
+      border: 1.5px dashed #fecaca;
+      background: #fff7f7;
+      color: #b91c1c;
+      font-weight: 800;
+    }
+
+    .workspace {
+      min-width: 0;
+      width: var(--left-w);
+      height: calc(var(--app-h) - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      overflow: hidden;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      align-items: flex-start;
+      padding: 0 2px 0;
+      flex: 0 0 auto;
+    }
+    .topbar h2 {
+      margin: 0;
+      font-size: .95rem;
+      letter-spacing: -.02em;
+      line-height: 1.05;
+    }
+    .topbar p {
+      margin: 1px 0 0;
+      color: var(--muted);
+      font-size: .62rem;
+      line-height: 1.1;
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 8px;
+    }
+    .toolbar .btn { width: auto; padding: 6px 8px; font-size: .68rem; }
+
+    .board {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: hidden;
+      padding: 2px;
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(255,255,255,.86), rgba(255,255,255,.72));
+      border: 1px solid rgba(255,255,255,.85);
+    }
+
+    table {
+      width: 100%;
+      height: 100%;
+      table-layout: fixed;
+      border-collapse: separate;
+      border-spacing: 2px;
+      min-width: 0;
+    }
+    th, td { vertical-align: top; }
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      background: rgba(245,247,251,.96);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 5px 6px;
+      text-align: left;
+      font-size: .68rem;
+      line-height: 1.05;
+    }
+    th small { display: block; color: var(--muted); margin-top: 1px; font-weight: 600; font-size: .56rem; }
+
+    .period-cell {
+      width: 70px;
+      min-width: 70px;
+      background: rgba(248,250,252,.95);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 3px 4px;
+      position: sticky;
+      left: 0;
+      z-index: 2;
+    }
+    .period-cell .p-title { font-weight: 800; font-size: .64rem; line-height: 1.05; }
+    .period-cell .p-time { color: var(--muted); font-size: .5rem; margin-top: 1px; line-height: 1.05; }
+
+    .dropzone {
+      min-height: 26px;
+      background: rgba(255,255,255,.78);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 2px;
+      display: flex;
+      flex-wrap: wrap;
+      align-content: flex-start;
+      gap: 2px;
+      transition: background .15s ease, border-color .15s ease;
+    }
+    .dropzone:hover { background: rgba(248,250,255,.96); border-color: #c7d2fe; }
+    .dropzone.over { outline: 2px dashed rgba(79,70,229,.35); }
+
+    .sticky-note {
+      background: var(--sticky);
+      border: 1px solid #f4df75;
+      border-radius: 16px;
+      padding: 12px;
+      min-width: 140px;
+      font-size: .86rem;
+      line-height: 1.45;
+      box-shadow: 0 12px 24px rgba(15,23,42,.06);
+      position: relative;
+    }
+    .sticky-note button {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      border: none;
+      background: transparent;
+      color: #7c6a1d;
+      cursor: pointer;
+      font-weight: 900;
+    }
+
+    .footer-note {
+      color: var(--muted);
+      font-size: .78rem;
+      line-height: 1.5;
+      padding: 0 2px;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(15,23,42,.42);
+      z-index: 40;
+      padding: 18px;
+    }
+    .modal.open { display: flex; }
+    .modal-card {
+      width: min(480px, 100%);
+      background: #fff;
+      border-radius: 24px;
+      padding: 18px;
+      box-shadow: 0 30px 80px rgba(15,23,42,.22);
+      border: 1px solid rgba(255,255,255,.8);
+    }
+    .modal-card h3 { margin: 0 0 12px; font-size: 1.1rem; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 12px; }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      font-size: .78rem;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+
+    .brand-badge {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(79,70,229,.10);
+      border: 1px solid rgba(79,70,229,.16);
+      color: #4338ca;
+      font-size: .68rem;
+      font-weight: 900;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      white-space: nowrap;
+    }
+
+    .hero .brand-badge {
+      background: rgba(255,255,255,.18);
+      border-color: rgba(255,255,255,.26);
+      color: #ffffff;
+    }
+
+    .topbar-badge {
+      margin: 0;
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      border: none;
+      color: #ffffff;
+      box-shadow: 0 8px 18px rgba(79,70,229,.24);
+    }
+
+    aside.sidebar { order: 2; }
+    main.workspace { order: 1; }
+
+    @media (max-width: 1024px) {
+      .app { height: auto; grid-template-columns: 1fr; overflow: visible; }
+      .sidebar { width: auto; max-height: none; }
+      .workspace { width: 100%; height: auto; min-height: 70vh; }
+      .board { overflow: auto; }
+      table { min-width: 920px; }
+      body { overflow: auto; }
+    }
+
+    @media (max-width: 720px) {
+      .grid-2, .grid-3, .stat-row { grid-template-columns: 1fr; }
+      .topbar { flex-wrap: wrap; }
+      .toolbar { width: 100%; justify-content: flex-start; }
+      .toolbar .btn, .topbar-badge { flex: 1 1 calc(50% - 8px); justify-content: center; }
+      .hero h1 { font-size: 1.18rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar panel">
+      <div class="hero">
+        <div class="brand-badge">Study Planner Pro</div>
+        <h1>Study Planner Pro</h1>
+        <p id="suneungDdayText">2027학년도 수능 디데이 계산 중...</p>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat"><div class="label">등록 과목</div><div class="value" id="statTasks">0</div></div>
+        <div class="stat"><div class="label">배치 카드</div><div class="value" id="statPlaced">0</div></div>
+        <div class="stat"><div class="label">오늘 집중도</div><div class="value" id="statFocus">-</div></div>
+      </div>
+
+      <section class="section">
+        <div class="section-title">빠른 추가 <span class="tag">Enter 가능</span></div>
+        <div class="grid-2">
+          <input class="input" id="taskName" placeholder="예: 수학 N제" />
+          <input class="input" id="taskRoom" placeholder="예: 자습 / 402호" />
+        </div>
+        <div class="grid-2" style="margin-top:10px; align-items:center;">
+          <input class="input" id="taskColor" type="color" value="#c7d2fe" />
+          <select class="select" id="taskKind">
+            <option value="normal">일반</option>
+            <option value="daily">매일 과제</option>
+            <option value="fixed">고정 수업</option>
+          </select>
+        </div>
+        <div class="task-preview-wrap" style="margin-top:10px;">
+          <div class="task-preview-label">미리보기</div>
+          <div class="task-card task-preview-card" id="taskPreviewCard" style="background:#c7d2fe;">
+            <div id="taskPreviewName">예: 수학 N제</div>
+            <div class="task-room" id="taskPreviewRoom">예: 자습 / 402호</div>
+          </div>
+        </div>
+        <div class="grid-2" style="margin-top:10px;">
+          <button class="btn primary" id="addTaskBtn">대기 목록에 추가</button>
+          <button class="btn soft" id="randomColorBtn">색상 랜덤</button>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-title">대기 목록 <span class="tag" id="bankCount">0개</span></div>
+        <div class="section-sub">아래 카드를 시간표 칸으로 드래그하면 바로 배치된다. 고정 수업은 자동으로 길게 보이고, 매일 과제는 점선 표시로 구분된다.</div>
+        <div class="pending-list" id="pendingList"></div>
+        <div class="trash" id="trash">여기로 드래그하면 삭제</div>
+      </section>
+
+      <section class="section">
+        <div class="section-title">매일 과제</div>
+        <div class="section-sub">여기서 따로 추가한 뒤, 월~금 빈 칸에 한 번씩 자동 배치할 수 있다.</div>
+        <div class="grid-2">
+          <input class="input" id="dailyTaskInput" placeholder="예: 영어 단어 / 오답 정리" />
+          <button class="btn success" id="addDailyTaskBtn">매일 과제 추가</button>
+        </div>
+        <div class="chip-row" id="dailyPool" style="margin-top:10px;"></div>
+        <div class="grid-2" style="margin-top:10px;">
+          <button class="btn success" id="autofillDailyBtn">월~금 자동 배치</button>
+          <button class="btn ghost" id="clearDailyPlacedBtn">배치된 매일과제 비우기</button>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-title">시험 일정</div>
+        <div class="section-sub">요일 전체를 시험일로 바꾸거나, 월/금 아침 주간시험을 토글할 수 있다.</div>
+        <div class="grid-2">
+          <select class="select" id="examDay">
+            <option value="0">월</option>
+            <option value="1">화</option>
+            <option value="2">수</option>
+            <option value="3">목</option>
+            <option value="4">금</option>
+          </select>
+          <select class="select" id="examType">
+            <option value="더프리미엄">더프리미엄</option>
+            <option value="학력평가">학력평가</option>
+            <option value="평가원">평가원</option>
+          </select>
+        </div>
+        <div class="grid-2" style="margin-top:10px;">
+          <button class="btn danger" id="setExamBtn">요일 시험 지정</button>
+          <button class="btn ghost" id="resetDayBtn">해당 요일 해제</button>
+        </div>
+        <button class="btn soft" id="toggleMorningExamBtn" style="margin-top:10px;">월/금 주간시험 토글</button>
+      </section>
+
+      <section class="section">
+        <div class="section-title">메모</div>
+        <textarea class="textarea" id="noteInput" placeholder="예: 화요일 저녁 영어 단어 2회독, 금요일 모고 오답 마감"></textarea>
+        <div class="grid-2" style="margin-top:10px;">
+          <button class="btn warning" id="addNoteBtn">메모 추가</button>
+          <button class="btn ghost" id="clearNotesBtn">메모 전체 삭제</button>
+        </div>
+        <div class="memo-list" id="memoList" style="margin-top:10px;"></div>
+      </section>
+
+      <section class="section">
+        <div class="section-title">저장 / 설정</div>
+        <div class="section-sub">현재 버전은 이 기기 Safari 안에 자동 저장된다. 기본 시간표 다시 넣기와 전체 초기화만 제공한다.</div>
+        <div class="grid-2" style="margin-top:10px;">
+          <button class="btn soft" id="seedSchoolBtn">기본 시간표 다시 넣기</button>
+          <button class="btn danger" id="resetBtn">전체 초기화</button>
+        </div>
+      </section>
+
+            <section class="section">
+        <div class="section-title">아이패드에서 열기</div>
+        <div class="section-sub">Safari에서 파일을 연 뒤 공유 버튼 → 홈 화면에 추가를 누르면 앱처럼 바로 열 수 있다.</div>
+      </section>
+
+      <div class="footer-note">
+        저장은 자동으로 된다. 오른쪽 패널에서 입력하고, 왼쪽 타임테이블은 아이패드 11인치 가로 기준으로 한 화면에 보이게 고정했다. 카드 클릭 시 메모/색상 수정 가능하고, 저장한 개별 메모도 카드 안에 보이게 했다.
+      </div>
+    </aside>
+
+    <main class="workspace panel">
+      <div class="topbar">
+        <div>
+          <h2>주간 타임테이블</h2>
+          <p>11인치 가로 기준 압축 뷰.</p>
+        </div>
+        <div class="toolbar">
+          <div class="brand-badge topbar-badge">Study Planner Pro</div>
+          <button class="btn ghost" id="undoBtn">되돌리기</button>
+          <button class="btn ghost" id="redoBtn">다시하기</button>
+          <button class="btn soft" id="weekendBtn">토/일 표시</button>
+          <button class="btn primary" id="focusBtn">집중도 계산</button>
+        </div>
+      </div>
+
+      <div class="board" id="boardWrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:116px; min-width:116px;">교시<small>시간</small></th>
+              <th>월<small>Monday</small></th>
+              <th>화<small>Tuesday</small></th>
+              <th>수<small>Wednesday</small></th>
+              <th>목<small>Thursday</small></th>
+              <th>금<small>Friday</small></th>
+              <th class="weekend-col" hidden>토<small>Saturday</small></th>
+              <th class="weekend-col" hidden>일<small>Sunday</small></th>
+            </tr>
+          </thead>
+          <tbody id="gridBody"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal" id="cardModal">
+    <div class="modal-card">
+      <h3 id="modalTitle">카드 수정</h3>
+      <div class="grid-2">
+        <input class="input" id="modalName" placeholder="이름" />
+        <input class="input" id="modalRoom" placeholder="장소 / 구분" />
+      </div>
+      <textarea class="textarea" id="modalMemo" placeholder="카드 메모"></textarea>
+      <div class="grid-2" style="margin-top:10px; align-items:center;">
+        <input class="input" id="modalColor" type="color" />
+        <select class="select" id="modalType">
+          <option value="normal">일반</option>
+          <option value="daily">매일 과제</option>
+          <option value="fixed">고정 수업</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn primary" id="saveCardBtn">저장</button>
+        <button class="btn danger" id="deleteCardBtn">삭제</button>
+        <button class="btn ghost" id="closeModalBtn">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'study_planner_pro_v2';
+    const DAYS = ['월', '화', '수', '목', '금', '토', '일'];
+    const periods = [
+      ['0교시', '07:50-08:00'],
+      ['1교시', '08:10-09:00'],
+      ['2교시', '09:00-09:50'],
+      ['3교시', '10:10-11:00'],
+      ['4교시', '11:00-11:50'],
+      ['점심', '11:50-13:10'],
+      ['5교시', '13:10-14:00'],
+      ['6교시', '14:00-14:50'],
+      ['7교시', '15:10-16:00'],
+      ['8교시', '16:00-16:50'],
+      ['9교시', '17:00-17:50'],
+      ['저녁', '17:50-18:50'],
+      ['10교시', '19:00-19:50'],
+      ['11교시', '19:50-20:40'],
+      ['12교시', '21:00-22:00']
+    ];
+    const lunchRows = [5, 11];
+    const palette = ['#c7d2fe','#bfdbfe','#a7f3d0','#fde68a','#fecdd3','#ddd6fe','#bae6fd','#fdba74','#bbf7d0','#f5d0fe'];
+
+    function createTask(data = {}) {
+      return {
+        id: (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2),
+        name: data.name || '새 과제',
+        room: data.room || '',
+        memo: data.memo || '',
+        color: data.color || palette[Math.floor(Math.random()*palette.length)],
+        type: data.type || 'normal'
+      };
+    }
+
+    function buildBaseSchedule() {
+      const schedule = {};
+      const add = (r, c, data) => {
+        const key = `${r}-${c}`;
+        if (!schedule[key]) schedule[key] = [];
+        schedule[key].push(createTask(data));
+      };
+
+      for (let c = 0; c < 5; c++) {
+        add(0, c, { name: '조회', color: '#f8fafc', type: 'fixed' });
+      }
+
+      for (let c = 0; c < 7; c++) {
+        add(5, c, { name: '🍴 점심', color: '#f1f5f9', type: 'fixed' });
+        add(11, c, { name: '🍱 저녁', color: '#f1f5f9', type: 'fixed' });
+      }
+
+      const schoolFixed = [
+        [9,0,'수학 I','101호','#f3e5f5'], [10,0,'수학 I','101호','#f3e5f5'],
+        [6,1,'독서','101호','#fff9e6'], [7,1,'독서','101호','#fff9e6'],
+        [12,1,'생활과 윤리','401호','#e0f7fa'], [13,1,'생활과 윤리','401호','#e0f7fa'], [14,1,'생활과 윤리','401호','#e0f7fa'],
+        [1,3,'윤리와 사상','302호','#e7f3ff'], [2,3,'윤리와 사상','302호','#e7f3ff'], [3,3,'윤리와 사상','302호','#e7f3ff'],
+        [4,3,'수학 II','402호','#fff0f0'], [6,3,'수학 II','402호','#fff0f0'],
+        [7,3,'국어종합','204호','#fff9e6'], [8,3,'국어종합','204호','#fff9e6'],
+        [3,4,'영어','303호','#f0fff0'], [4,4,'영어','303호','#f0fff0'],
+        [12,3,'한국사','202호','#fce5cd'], [13,3,'한국사','202호','#fce5cd']
+      ];
+
+      schoolFixed.forEach(([r,c,name,room,color]) => {
+        add(r, c, { name, room, color, type: 'fixed' });
+      });
+
+      const movableBase = [
+        [2,1,'스탠퍼드식 TMS','병원','#e5e7eb'], [3,1,'스탠퍼드식 TMS','병원','#e5e7eb'], [4,1,'스탠퍼드식 TMS','병원','#e5e7eb'],
+        [2,5,'스탠퍼드식 TMS','병원','#e5e7eb'], [3,5,'스탠퍼드식 TMS','병원','#e5e7eb'], [4,5,'스탠퍼드식 TMS','병원','#e5e7eb']
+      ];
+
+      movableBase.forEach(([r,c,name,room,color]) => {
+        add(r, c, { name, room, color, type: 'normal' });
+      });
+
+      return schedule;
+    }
+
+    const defaultState = () => ({
+      showWeekend: false,
+      tasks: [],
+      notes: [],
+      schedule: buildBaseSchedule(),
+      history: [],
+      future: []
+    });
+
+
+    let state = loadState();
+    let editRef = null;
+    let bankSortable = null;
+    let trashSortable = null;
+    let gridSortables = [];
+
+    function loadState() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (!raw) return defaultState();
+        return {
+          ...defaultState(),
+          ...raw,
+          tasks: Array.isArray(raw.tasks) ? raw.tasks : [],
+          notes: Array.isArray(raw.notes) ? raw.notes : [],
+          schedule: raw.schedule && Object.keys(raw.schedule).length ? raw.schedule : buildBaseSchedule(),
+          history: Array.isArray(raw.history) ? raw.history : [],
+          future: Array.isArray(raw.future) ? raw.future : []
+        };
+      } catch {
+        return defaultState();
+      }
+    }
+
+    function persist() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      updateStats();
+      updateButtons();
+      renderDailyPool();
+    }
+
+    function snapshot() {
+      const current = JSON.stringify({ ...state, history: [], future: [] });
+      state.history.push(current);
+      if (state.history.length > 50) state.history.shift();
+      state.future = [];
+    }
+
+    function undo() {
+      if (!state.history.length) return;
+      const prev = state.history.pop();
+      const current = JSON.stringify({ ...state, history: [], future: [] });
+      state.future.push(current);
+      state = { ...JSON.parse(prev), history: state.history, future: state.future };
+      renderAll();
+    }
+
+    function redo() {
+      if (!state.future.length) return;
+      const next = state.future.pop();
+      const current = JSON.stringify({ ...state, history: [], future: [] });
+      state.history.push(current);
+      state = { ...JSON.parse(next), history: state.history, future: state.future };
+      renderAll();
+    }
+
+    function scheduleKey(r, c) { return `${r}-${c}`; }
+    function getCell(r, c) { return state.schedule[scheduleKey(r, c)] || []; }
+    function setCell(r, c, items) { state.schedule[scheduleKey(r, c)] = items; }
+
+    function addTaskFromInputs() {
+      const name = document.getElementById('taskName').value.trim();
+      if (!name) return;
+      snapshot();
+      state.tasks.push(createTask({
+        name,
+        room: document.getElementById('taskRoom').value.trim(),
+        color: document.getElementById('taskColor').value,
+        type: document.getElementById('taskKind').value
+      }));
+      document.getElementById('taskName').value = '';
+      document.getElementById('taskRoom').value = '';
+      persist();
+      renderTaskBank();
+      updateTaskPreview();
+    }
+
+    function taskHTML(task, isPlaced = false) {
+      return `
+        <div class="task-card ${task.type === 'daily' ? 'daily' : ''} ${task.type === 'fixed' ? 'fixed' : ''}" data-id="${task.id}" style="background:${task.color};">
+          <div>${escapeHtml(task.name)}</div>
+          ${task.room ? `<div class="task-room">${escapeHtml(task.room)}</div>` : ''}
+          ${task.memo ? `<div class="task-memo">${escapeHtml(task.memo)}</div>` : ''}
+        </div>`;
+    }
+
+    function renderTaskBank() {
+      const box = document.getElementById('pendingList');
+      box.innerHTML = state.tasks.map(task => taskHTML(task)).join('');
+      document.getElementById('bankCount').textContent = `${state.tasks.length}개`;
+      attachTaskClicks(box, 'bank');
+      mountBankSortable();
+      renderDailyPool();
+      updateStats();
+    }
+
+    function renderDailyPool() {
+      const box = document.getElementById('dailyPool');
+      const daily = state.tasks.filter(t => t.type === 'daily');
+      box.innerHTML = daily.length ? daily.map(t => `<div class="chip"><span>${escapeHtml(t.name)}</span><button onclick="removeBankTask('${t.id}')">×</button></div>`).join('') : '<span class="footer-note">아직 없음</span>';
+    }
+
+    function renderGrid() {
+      const tbody = document.getElementById('gridBody');
+      tbody.innerHTML = '';
+      for (let r = 0; r < periods.length; r++) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td class="period-cell"><div class="p-title">${periods[r][0]}</div><div class="p-time">${periods[r][1]}</div></td>`;
+        for (let c = 0; c < 7; c++) {
+          const td = document.createElement('td');
+          if (c > 4 && !state.showWeekend) td.hidden = true;
+          const zone = document.createElement('div');
+          zone.className = 'dropzone';
+          zone.dataset.key = scheduleKey(r, c);
+          if (lunchRows.includes(r)) zone.style.background = 'rgba(248,250,252,.92)';
+          zone.innerHTML = getCell(r, c).map(task => taskHTML(task, true)).join('');
+          td.appendChild(zone);
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      }
+      document.querySelectorAll('.weekend-col').forEach(el => el.hidden = !state.showWeekend);
+      mountGridSortables();
+      attachGridClicks();
+    }
+
+    function renderNotes() {
+      const box = document.getElementById('memoList');
+      box.innerHTML = state.notes.map((note, i) => `
+        <div class="sticky-note">
+          <button onclick="deleteNote(${i})">×</button>
+          ${escapeHtml(note).replace(/\n/g, '<br>')}
+        </div>`).join('');
+    }
+
+    function renderAll() {
+      renderTaskBank();
+      renderGrid();
+      renderNotes();
+      persist();
+    }
+
+    function attachTaskClicks(root, source) {
+      root.querySelectorAll('.task-card').forEach(el => {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openCardModal(el.dataset.id, source, root.closest('.dropzone')?.dataset.key || null);
+        });
+      });
+    }
+
+    function attachGridClicks() {
+      document.querySelectorAll('.dropzone').forEach(zone => attachTaskClicks(zone, 'grid'));
+    }
+
+    function mountBankSortable() {
+      if (bankSortable) bankSortable.destroy();
+      if (trashSortable) trashSortable.destroy();
+
+      bankSortable = new Sortable(document.getElementById('pendingList'), {
+        group: { name: 'planner', pull: true, put: true },
+        sort: true,
+        animation: 150,
+        fallbackOnBody: true,
+        onStart() { snapshot(); },
+        onAdd(evt) {
+          syncBankFromDOM(false);
+          if (evt.from?.dataset?.key) syncPlacedFromDOM(evt.from, false);
+        },
+        onUpdate() { syncBankFromDOM(false); },
+        onRemove() { syncBankFromDOM(false); }
+      });
+
+      trashSortable = new Sortable(document.getElementById('trash'), {
+        group: 'planner',
+        animation: 150,
+        onAdd(evt) {
+          const id = evt.item.dataset.id;
+          snapshot();
+          removeTaskEverywhere(id);
+          evt.item.remove();
+          renderAll();
+        }
+      });
+    }
+
+    function mountGridSortables() {
+      gridSortables.forEach(instance => instance.destroy());
+      gridSortables = [];
+      document.querySelectorAll('.dropzone').forEach(zone => {
+        const instance = new Sortable(zone, {
+          group: { name: 'planner', pull: true, put: true },
+          animation: 150,
+          onStart() { snapshot(); },
+          onAdd(evt) { syncAfterDrop(evt); },
+          onUpdate(evt) { syncPlacedFromDOM(evt.from, false); syncPlacedFromDOM(evt.to, false); persist(); },
+          onRemove(evt) { if (evt.from?.dataset?.key) syncPlacedFromDOM(evt.from, false); }
+        });
+        gridSortables.push(instance);
+      });
+    }
+
+    function cloneTaskById(id) {
+      const t = state.tasks.find(x => x.id === id) || findPlacedTask(id);
+      return t ? structuredClone(t) : null;
+    }
+
+    function syncAfterDrop(evt) {
+      if (evt.from.id === 'pendingList') {
+        syncBankFromDOM(false);
+        syncPlacedFromDOM(evt.to, false);
+      } else {
+        syncPlacedFromDOM(evt.from, false);
+        syncPlacedFromDOM(evt.to, false);
+      }
+      persist();
+    }
+
+    function syncPlacedFromDOM(zone, shouldPersist = true) {
+      if (!zone?.dataset?.key) return;
+      const key = zone.dataset.key;
+      const list = Array.from(zone.querySelectorAll('.task-card')).map(card => cloneTaskById(card.dataset.id)).filter(Boolean);
+      setCellByKey(key, list);
+      if (shouldPersist) persist();
+    }
+
+    function syncBankFromDOM(shouldPersist = true) {
+      const ids = Array.from(document.querySelectorAll('#pendingList .task-card')).map(el => el.dataset.id);
+      state.tasks = ids.map(id => cloneTaskById(id)).filter(Boolean);
+      document.getElementById('bankCount').textContent = `${state.tasks.length}개`;
+      renderDailyPool();
+      updateStats();
+      if (shouldPersist) {
+        persist();
+        renderTaskBank();
+      }
+    }
+
+    function getCellByKey(key) { return state.schedule[key] || []; }
+    function setCellByKey(key, list) { state.schedule[key] = list; }
+
+    function findPlacedTask(id) {
+      for (const key of Object.keys(state.schedule)) {
+        const found = state.schedule[key].find(x => x.id === id);
+        if (found) return found;
+      }
+      return null;
+    }
+
+    function openCardModal(id, source, key) {
+      const item = source === 'bank' ? state.tasks.find(t => t.id === id) : findPlacedTask(id);
+      if (!item) return;
+      editRef = { id, source, key };
+      document.getElementById('modalTitle').textContent = `카드 수정 · ${item.name}`;
+      document.getElementById('modalName').value = item.name;
+      document.getElementById('modalRoom').value = item.room || '';
+      document.getElementById('modalMemo').value = item.memo || '';
+      document.getElementById('modalColor').value = rgbToHex(item.color) || '#c7d2fe';
+      document.getElementById('modalType').value = item.type || 'normal';
+      document.getElementById('cardModal').classList.add('open');
+    }
+
+    function closeModal() {
+      document.getElementById('cardModal').classList.remove('open');
+      editRef = null;
+    }
+
+    function saveCardEdits() {
+      if (!editRef) return;
+      snapshot();
+      const patch = {
+        name: document.getElementById('modalName').value.trim() || '이름 없음',
+        room: document.getElementById('modalRoom').value.trim(),
+        memo: document.getElementById('modalMemo').value.trim(),
+        color: document.getElementById('modalColor').value,
+        type: document.getElementById('modalType').value
+      };
+      mutateTaskEverywhere(editRef.id, task => Object.assign(task, patch));
+      closeModal();
+      renderAll();
+    }
+
+    function deleteEditedCard() {
+      if (!editRef) return;
+      if (!confirm('이 카드를 삭제할까?')) return;
+      snapshot();
+      removeTaskEverywhere(editRef.id);
+      closeModal();
+      renderAll();
+    }
+
+    function mutateTaskEverywhere(id, fn) {
+      state.tasks.forEach(t => { if (t.id === id) fn(t); });
+      Object.values(state.schedule).forEach(list => list.forEach(t => { if (t.id === id) fn(t); }));
+      persist();
+    }
+
+    function removeTaskEverywhere(id) {
+      state.tasks = state.tasks.filter(t => t.id !== id);
+      Object.keys(state.schedule).forEach(key => {
+        state.schedule[key] = state.schedule[key].filter(t => t.id !== id);
+      });
+      persist();
+    }
+
+    function removeBankTask(id) {
+      snapshot();
+      state.tasks = state.tasks.filter(t => t.id !== id);
+      persist();
+      renderTaskBank();
+    }
+
+    function addNote() {
+      const val = document.getElementById('noteInput').value.trim();
+      if (!val) return;
+      snapshot();
+      state.notes.unshift(val);
+      document.getElementById('noteInput').value = '';
+      renderNotes();
+      persist();
+    }
+
+    function deleteNote(i) {
+      snapshot();
+      state.notes.splice(i, 1);
+      renderNotes();
+      persist();
+    }
+
+    function clearNotes() {
+      if (!state.notes.length || !confirm('메모를 전부 지울까?')) return;
+      snapshot();
+      state.notes = [];
+      renderNotes();
+      persist();
+    }
+
+    function addDailyTask() {
+      const input = document.getElementById('dailyTaskInput');
+      const name = input.value.trim();
+      if (!name) return;
+      snapshot();
+      state.tasks.push(createTask({
+        name,
+        color: '#fecdd3',
+        type: 'daily'
+      }));
+      input.value = '';
+      persist();
+      renderTaskBank();
+    }
+
+    function autoPlaceDaily() {
+      const daily = state.tasks.filter(t => t.type === 'daily');
+      if (!daily.length) return alert('매일 과제가 없어.');
+      snapshot();
+      for (let c = 0; c < 5; c++) {
+        const task = daily[c % daily.length];
+        let placed = false;
+        for (let r = 1; r < periods.length; r++) {
+          if (lunchRows.includes(r)) continue;
+          const key = scheduleKey(r, c);
+          const list = getCellByKey(key);
+          if (list.length < 3) {
+            list.push(structuredClone(task));
+            setCellByKey(key, list);
+            placed = true;
+            break;
+          }
+        }
+        if (!placed) console.warn('배치 실패', task.name, DAYS[c]);
+      }
+      renderGrid();
+      persist();
+    }
+
+    function clearPlacedDaily() {
+      snapshot();
+      Object.keys(state.schedule).forEach(key => {
+        state.schedule[key] = state.schedule[key].filter(t => t.type !== 'daily');
+      });
+      renderGrid();
+      persist();
+    }
+
+    function computeFocus() {
+      let score = 0;
+      for (let c = 0; c < 5; c++) {
+        for (let r = 1; r < periods.length; r++) {
+          if (lunchRows.includes(r)) continue;
+          const len = getCell(r, c).length;
+          score += Math.min(len, 2);
+        }
+      }
+      const normalized = Math.min(100, Math.round((score / 40) * 100));
+      document.getElementById('statFocus').textContent = normalized + '%';
+      alert(`집중도 추정: ${normalized}%\n\n기준: 월~금 학습 칸이 얼마나 균형 있게 채워져 있는지로 계산.`);
+    }
+
+    function updateStats() {
+      document.getElementById('statTasks').textContent = state.tasks.length;
+      const placed = Object.values(state.schedule).reduce((acc, list) => acc + list.length, 0);
+      document.getElementById('statPlaced').textContent = placed;
+      if (document.getElementById('statFocus').textContent === '-') {
+        document.getElementById('statFocus').textContent = placed ? Math.min(100, Math.round((placed / 45) * 100)) + '%' : '-';
+      }
+    }
+
+    function updateButtons() {
+      document.getElementById('undoBtn').disabled = !state.history.length;
+      document.getElementById('redoBtn').disabled = !state.future.length;
+      document.getElementById('weekendBtn').textContent = state.showWeekend ? '토/일 숨기기' : '토/일 표시';
+    }
+
+    function exportJSON() {
+      const blob = new Blob([JSON.stringify({ ...state, history: [], future: [] }, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'study-planner-backup.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importJSON(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const imported = JSON.parse(reader.result);
+          snapshot();
+          state = { ...defaultState(), ...imported, history: [], future: [] };
+          renderAll();
+        } catch {
+          alert('JSON 파일 형식이 올바르지 않아.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function seedSchoolTemplate() {
+      if (!confirm('기본 시간표를 다시 적용할까? 현재 시간표는 기본 시간표로 덮어쓰고, 대기 목록과 메모는 그대로 둔다.')) return;
+      snapshot();
+      state.schedule = buildBaseSchedule();
+      renderGrid();
+      persist();
+    }
+
+    function setExamDay() {
+      snapshot();
+      const day = parseInt(document.getElementById('examDay').value, 10);
+      const type = document.getElementById('examType').value;
+      for (let r = 1; r < periods.length; r++) {
+        if (lunchRows.includes(r)) continue;
+        setCell(r, day, [createTask({ name: `📝 ${type}`, color: '#fee2e2', type: 'fixed' })]);
+      }
+      renderGrid();
+      persist();
+    }
+
+    function resetSelectedDay() {
+      snapshot();
+      const day = parseInt(document.getElementById('examDay').value, 10);
+      const base = buildBaseSchedule();
+      for (let r = 0; r < periods.length; r++) {
+        const key = scheduleKey(r, day);
+        state.schedule[key] = base[key] ? structuredClone(base[key]) : [];
+      }
+      renderGrid();
+      persist();
+    }
+
+    function toggleMorningExam() {
+      snapshot();
+      const hasMorningExam = [0, 4].every(c => {
+        const first = getCell(0, c)[0];
+        return first && first.name && first.name.includes('주간시험');
+      });
+
+      const base = buildBaseSchedule();
+
+      [0, 4].forEach(c => {
+        for (let r = 0; r <= 2; r++) {
+          const key = scheduleKey(r, c);
+          if (hasMorningExam) {
+            state.schedule[key] = base[key] ? structuredClone(base[key]) : [];
+          } else {
+            state.schedule[key] = [createTask({ name: '📝 주간시험', color: '#fee2e2', type: 'fixed' })];
+          }
+        }
+      });
+
+      renderGrid();
+      persist();
+    }
+
+    function resetAll() {
+      if (!confirm('전체 초기화할까? 되돌릴 수 없어.')) return;
+      state = defaultState();
+      renderAll();
+    }
+
+    function escapeHtml(str='') {
+      return str.replace(/[&<>"]/g, s => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[s]));
+    }
+
+    function rgbToHex(color) {
+      if (!color) return null;
+      if (color.startsWith('#')) return color;
+      const m = color.match(/\d+/g);
+      if (!m) return null;
+      return '#' + m.slice(0,3).map(x => (+x).toString(16).padStart(2,'0')).join('');
+    }
+
+    function updateTaskPreview() {
+      const preview = document.getElementById('taskPreviewCard');
+      const nameEl = document.getElementById('taskPreviewName');
+      const roomEl = document.getElementById('taskPreviewRoom');
+      const name = document.getElementById('taskName')?.value.trim();
+      const room = document.getElementById('taskRoom')?.value.trim();
+      const color = document.getElementById('taskColor')?.value || '#c7d2fe';
+      const kind = document.getElementById('taskKind')?.value || 'normal';
+      if (!preview || !nameEl || !roomEl) return;
+      preview.style.background = color;
+      preview.classList.toggle('daily', kind === 'daily');
+      preview.classList.toggle('fixed', kind === 'fixed');
+      nameEl.textContent = name || '예: 수학 N제';
+      roomEl.textContent = room || '예: 자습 / 402호';
+      roomEl.style.display = 'block';
+    }
+
+    function updateSuneungDday() {
+      const el = document.getElementById('suneungDdayText');
+      if (!el) return;
+
+      const examDate = new Date('2026-11-19T00:00:00+09:00');
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const target = new Date(examDate.getFullYear(), examDate.getMonth(), examDate.getDate());
+      const diffDays = Math.ceil((target - today) / (1000 * 60 * 60 * 24));
+
+      if (diffDays > 0) {
+        el.textContent = `2027학년도 수능까지 D-${diffDays}`;
+      } else if (diffDays === 0) {
+        el.textContent = '2027학년도 수능 D-DAY';
+      } else {
+        el.textContent = `2027학년도 수능 종료 · D+${Math.abs(diffDays)}`;
+      }
+    }
+
+    function randomizeColor() {
+      document.getElementById('taskColor').value = palette[Math.floor(Math.random()*palette.length)];
+      updateTaskPreview();
+    }
+
+    document.getElementById('addTaskBtn').addEventListener('click', addTaskFromInputs);
+    document.getElementById('randomColorBtn').addEventListener('click', randomizeColor);
+    document.getElementById('taskName').addEventListener('input', updateTaskPreview);
+    document.getElementById('taskRoom').addEventListener('input', updateTaskPreview);
+    document.getElementById('taskColor').addEventListener('input', updateTaskPreview);
+    document.getElementById('taskKind').addEventListener('change', updateTaskPreview);
+    document.getElementById('taskName').addEventListener('keydown', e => { if (e.key === 'Enter') addTaskFromInputs(); });
+    document.getElementById('taskRoom').addEventListener('keydown', e => { if (e.key === 'Enter') addTaskFromInputs(); });
+    document.getElementById('addNoteBtn').addEventListener('click', addNote);
+    document.getElementById('clearNotesBtn').addEventListener('click', clearNotes);
+    document.getElementById('noteInput').addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') addNote(); });
+    document.getElementById('weekendBtn').addEventListener('click', () => { snapshot(); state.showWeekend = !state.showWeekend; renderGrid(); persist(); });
+    document.getElementById('focusBtn').addEventListener('click', computeFocus);
+    document.getElementById('undoBtn').addEventListener('click', undo);
+    document.getElementById('redoBtn').addEventListener('click', redo);
+    document.getElementById('seedSchoolBtn').addEventListener('click', seedSchoolTemplate);
+    document.getElementById('resetBtn').addEventListener('click', resetAll);
+    document.getElementById('addDailyTaskBtn').addEventListener('click', addDailyTask);
+    document.getElementById('dailyTaskInput').addEventListener('keydown', e => { if (e.key === 'Enter') addDailyTask(); });
+    document.getElementById('autofillDailyBtn').addEventListener('click', autoPlaceDaily);
+    document.getElementById('clearDailyPlacedBtn').addEventListener('click', clearPlacedDaily);
+    document.getElementById('setExamBtn').addEventListener('click', setExamDay);
+    document.getElementById('resetDayBtn').addEventListener('click', resetSelectedDay);
+    document.getElementById('toggleMorningExamBtn').addEventListener('click', toggleMorningExam);
+    document.getElementById('saveCardBtn').addEventListener('click', saveCardEdits);
+    document.getElementById('deleteCardBtn').addEventListener('click', deleteEditedCard);
+    document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+    document.getElementById('cardModal').addEventListener('click', e => { if (e.target.id === 'cardModal') closeModal(); });
+
+    randomizeColor();
+    renderAll();
+    updateTaskPreview();
+    updateSuneungDday();
+    window.removeBankTask = removeBankTask;
+    window.deleteNote = deleteNote;
+  </script>
+</body>
+</html>
