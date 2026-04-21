@@ -197,7 +197,9 @@
       width: auto;
     }
 
+    /* ==== 과제 카드 스타일 ==== */
     .task-card {
+      position: relative; /* 체크 마크 위치를 위해 추가 */
       border-radius: 9px;
       padding: 3px 4px;
       font-size: .6rem;
@@ -213,6 +215,7 @@
       justify-content: center;
       gap: 2px;
       overflow: hidden;
+      transition: opacity 0.2s, filter 0.2s; /* 완료 효과 전환용 */
     }
     .task-card small { color: rgba(15,23,42,.65); font-weight: 600; font-size: .48rem; line-height: 1.0; }
 
@@ -264,6 +267,43 @@
 
     .task-card.fixed { cursor: default; }
     .task-card.daily { outline: 2px dashed rgba(239,68,68,.55); outline-offset: -3px; }
+
+    /* ==== 완료(체크) 스타일 & 더블 탭 효과 ==== */
+    .task-card.done {
+      opacity: 0.65;
+      filter: grayscale(0.2);
+    }
+    .task-card.done > div:first-child {
+      text-decoration: line-through;
+      color: rgba(15, 23, 42, 0.5);
+    }
+    .task-card.done::after {
+      content: '✔';
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      font-size: 9px;
+      font-weight: 900;
+      color: #fff;
+      background: #10b981; /* 성공 초록색 */
+      border-radius: 50%;
+      width: 14px;
+      height: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      z-index: 2;
+    }
+
+    @keyframes popPing {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.08) rotate(-1deg); filter: brightness(1.1); box-shadow: 0 0 12px rgba(16, 185, 129, 0.6); }
+      100% { transform: scale(1); }
+    }
+    .task-card.check-effect {
+      animation: popPing 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
 
     .pending-list {
       min-height: 72px;
@@ -555,7 +595,7 @@
 
       <section class="section">
         <div class="section-title">대기 목록 <span class="tag" id="bankCount">0개</span></div>
-        <div class="section-sub">아래 카드를 시간표 칸으로 드래그하면 바로 배치된다. 고정 수업은 자동으로 길게 보이고, 매일 과제는 점선 표시로 구분된다.</div>
+        <div class="section-sub">아래 카드를 시간표 칸으로 드래그하면 바로 배치된다. 카드를 짧게 '두 번 탭'하면 완료(체크) 표시된다.</div>
         <div class="pending-list" id="pendingList"></div>
         <div class="trash" id="trash">여기로 드래그하면 삭제</div>
       </section>
@@ -618,7 +658,7 @@
       </section>
 
       <div class="footer-note">
-        최종 안정화 버전. 자동 저장, 개별 카드 삭제, 매일과제 반복 배치, 시험 일정, 카드 메모 표시, 색상 미리보기를 포함한다. 아이패드 11인치 가로 기준으로 맞췄다.
+        최종 안정화 버전. 카드를 두 번 탭하면 완료 효과가 추가된다. 아이패드 11인치 가로 기준으로 맞췄다.
       </div>
     </aside>
 
@@ -705,7 +745,6 @@
     const lunchRows = [5, 11];
     const palette = ['#c7d2fe','#bfdbfe','#a7f3d0','#fde68a','#fecdd3','#ddd6fe','#bae6fd','#fdba74','#bbf7d0','#f5d0fe'];
 
-    // 버그 수정 1: UUID 생성 호환성 강화
     function generateId() {
       if (typeof crypto !== 'undefined' && crypto.randomUUID) {
         return crypto.randomUUID();
@@ -720,7 +759,8 @@
         room: data.room || '',
         memo: data.memo || '',
         color: data.color || palette[Math.floor(Math.random()*palette.length)],
-        type: data.type || 'normal'
+        type: data.type || 'normal',
+        done: data.done || false // 완료 여부 속성 추가
       };
     }
 
@@ -801,7 +841,6 @@
       }
     }
 
-    // 버그 수정 2: LocalStorage 용량 제한 핸들링
     function persist() {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -879,8 +918,9 @@
     }
 
     function taskHTML(task, isPlaced = false) {
+      // 완료된 과제면 done 클래스를 붙임
       return `
-        <div class="task-card ${task.type === 'daily' ? 'daily' : ''} ${task.type === 'fixed' ? 'fixed' : ''}" data-id="${task.id}" style="background:${task.color};">
+        <div class="task-card ${task.type === 'daily' ? 'daily' : ''} ${task.type === 'fixed' ? 'fixed' : ''} ${task.done ? 'done' : ''}" data-id="${task.id}" style="background:${task.color};">
           <div>${escapeHtml(task.name)}</div>
           ${task.room ? `<div class="task-room">${escapeHtml(task.room)}</div>` : ''}
           ${task.memo ? `<div class="task-memo">${escapeHtml(task.memo)}</div>` : ''}
@@ -943,11 +983,47 @@
       persist();
     }
 
+    // 더블 탭(클릭) 및 완료 토글 로직 추가
+    function toggleTaskDone(el, id, source, key) {
+      snapshot();
+      let task = source === 'bank' ? state.tasks.find(t => t.id === id) : state.schedule[key]?.find(t => t.id === id);
+      
+      if (task) {
+        task.done = !task.done;
+        
+        // 시각적 효과 즉시 적용
+        if (task.done) el.classList.add('done');
+        else el.classList.remove('done');
+        
+        // 팝업 애니메이션 재실행
+        el.classList.remove('check-effect');
+        void el.offsetWidth; // DOM Reflow를 강제하여 애니메이션 리셋
+        el.classList.add('check-effect');
+
+        persist();
+      }
+    }
+
     function attachTaskClicks(root, source) {
       root.querySelectorAll('.task-card').forEach(el => {
+        let clickTimer = null;
+        
         el.addEventListener('click', (e) => {
           e.stopPropagation();
-          openCardModal(el.dataset.id, source, root.closest('.dropzone')?.dataset.key || null);
+          const key = root.closest('.dropzone')?.dataset.key || null;
+
+          if (clickTimer) {
+            // 두 번 탭(클릭) 감지 시: 완료 토글
+            clearTimeout(clickTimer);
+            clickTimer = null;
+            toggleTaskDone(el, el.dataset.id, source, key);
+          } else {
+            // 첫 탭(클릭) 시 250ms 대기 후 단일 클릭으로 판정 (모달 오픈)
+            clickTimer = setTimeout(() => {
+              clickTimer = null;
+              openCardModal(el.dataset.id, source, key);
+            }, 250);
+          }
         });
       });
     }
@@ -956,7 +1032,6 @@
       document.querySelectorAll('.dropzone').forEach(zone => attachTaskClicks(zone, 'grid'));
     }
 
-    // 버그 수정 3: 아이패드 터치 스크롤 간섭 방지 (delay 추가)
     const SORTABLE_OPTIONS = {
       group: { name: 'planner', pull: true, put: true },
       animation: 150,
@@ -984,7 +1059,7 @@
       trashSortable = new Sortable(document.getElementById('trash'), {
         group: 'planner',
         animation: 150,
-        delay: 0, // 삭제는 즉시 작동
+        delay: 0,
         onAdd(evt) {
           const id = evt.item.dataset.id;
           snapshot();
